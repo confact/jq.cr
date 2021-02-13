@@ -4,7 +4,7 @@ require "../src/jq"
 # Print Jq.mapping definition from a json file.
 #
 # `cat accounts.json | crystal examples/generate_mapping.cr`
-# 
+#
 # ```text
 # class Foo
 #   Jq.mapping({
@@ -16,7 +16,7 @@ require "../src/jq"
 # Print Jq.mapping definition with full jq path from a json file.
 #
 # `cat accounts.json | crystal examples/generate_mapping.cr -- --full`
-# 
+#
 # ```text
 # class Foo
 #   Jq.mapping({
@@ -28,7 +28,7 @@ require "../src/jq"
 # Print protobuf schema from a json file.
 #
 # `cat accounts.json | crystal examples/generate_mapping.cr -- --proto`
-# 
+#
 # ```text
 # message Foo {
 #   optional string name           = 1;
@@ -85,10 +85,7 @@ def generate_mapping(jq, path, mode, klass)
 end
 
 private def pretty_lines(lines : Array(Array(String)), indent : String = "") : String
-  sample = lines[0]
-  widths = (0...sample.size).map{|i| lines.map(&.[i].size).max}
-  format = widths.map{|w| "%-#{w}s"}.join
-  lines.map{|row| indent + (format % row)}.join("\n")
+  lines.map{|row| indent + row }.join("\n")
 end
 
 private def render_proto(lines, klass)

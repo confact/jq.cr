@@ -8,12 +8,12 @@ class Jq
     class Lambda
       include Query
 
-      getter trace
+      getter trace : String
 
       def initialize(@trace : String, @func : (JSON::Any -> JSON::Any))
       end
 
-      def apply(any : JSON::Any)
+      def apply(any : JSON::Any) : JSON::Any
         @func.call(any)
       end
     end
@@ -21,7 +21,7 @@ class Jq
     class Attr
       include Query
 
-      getter trace
+      getter trace : String
 
       def initialize(@trace : String, @key : (Int32 | String))
       end
@@ -29,7 +29,7 @@ class Jq
       def apply(x : Array(JSON::Any), i : Int32) : JSON::Any
         x[i]
       end
-      
+
       def apply(x : Array(JSON::Any), key : String) : Array(JSON::Any)
         v = x.map{|e|
           case e.raw
@@ -46,7 +46,7 @@ class Jq
       def apply(x : Array(JSON::Any), key) : JSON::Any
         raise "invalid [#{key}(#{key.class})] access to Array"
       end
-      
+
       def apply(x : JSON::Any) : JSON::Any
         if x.raw.is_a?(Array)
           # x: [{"s" => "foo"}, {"s" => "bar"}]
@@ -77,12 +77,12 @@ class Jq
     class Const
       include Query
 
-      getter trace
+      getter trace : String
 
       def initialize(@trace : String, @val : JSON::Any)
       end
 
-      def apply(x : JSON::Any)
+      def apply(x : JSON::Any) : JSON::Any
         @val
       end
     end
@@ -90,12 +90,12 @@ class Jq
     class ToArray
       include Query
 
-      getter trace
+      getter trace : String
 
       def initialize(@trace : String)
       end
 
-      def apply(x : JSON::Any)
+      def apply(x : JSON::Any) : JSON::Any
         case x.raw
         when Array
           x.as(JSON::Any)

@@ -1,0 +1,98 @@
+module Jq::Time
+  MONTH_NAMES = %w(January February March April May June July August September October
+November December)
+  SHORT_MONTH_NAMES = MONTH_NAMES.map(&.[0..2])
+
+  class ParseError < Exception
+    property value : String
+
+    def initialize(@value : String)
+      super("can't parse time: '%s'" % @value)
+    end
+  end
+
+  def self.parse?(value : String, location : ::Time::Location? = nil) : ::Time?
+    parse(value, location) rescue nil
+  end
+
+  def self.parse(value : String, location : ::Time::Location? = nil) : ::Time
+    utc = ::Time::Location::UTC
+    location ||= utc
+    case value
+    when /\A\d{4}-\d{2}-\d{2}([ T])\d{2}:\d{2}:\d{2}( ?)[+-]\d{2}(:?)\d{2}/
+      # "2000-01-02T03:04:05+0900"
+      # "2000-01-02T03:04:05+09:00"
+      # "2000-01-02T03:04:05 +0900"
+      # "2000-01-02 03:04:05 +0900"
+      # "2000-01-02T03:04:05 +09:00"
+      # "2000-01-02 03:04:05 +0900 Japan"
+      # "2000-01-02 03:04:05 -03:00 America/Buenos_Aires"
+      ::Time.parse(value, "%F#{$1}%T#{$2}%#{$3}z", location)
+    when /\A\d{4}-\d{2}-\d{2}([ T])\d{2}:\d{2}:\d{2}\.\d{1,3}( ?)\+\d{2}(:?)\d{2}/
+      # "2000-01-02 03:04:05.678+0900"
+      # "2000-01-02 03:04:05.678+09:00"
+      # "2000-01-02T03:04:05.678 +0900"
+      # "2000-01-02T03:04:05.678 +09:00"
+      # "2000-01-02 03:04:05.0 +09:00 Asia/Tokyo"
+      ::Time.parse(value, "%F#{$1}%T.%L#{$2}%#{$3}z", location)
+    when /\A\d{4}-\d{2}-\d{2}([ T])\d{2}:\d{2}:\d{2}\.\d{3}(Z?)/
+      # "2000-01-02 03:04:05.678"
+      # "2000-01-02T03:04:05.678"
+      # "2000-01-02T03:04:05.678Z"
+      # "2000-01-02 03:04:05.000 UTC"
+      location = utc if $2.to_s != ""
+      ::Time.parse(value, "%F#{$1}%T.%L", location)
+    when /\A\d{4}-\d{2}-\d{2}([ T])\d{2}:\d{2}:\d{2}(Z?)/
+      # "2000-01-02 03:04:05"
+      # "2000-01-02T03:04:05"
+      # "2000-01-02T03:04:05Z"
+      # "2000-01-02 03:04:05 UTC"
+      location = utc if $2.to_s != ""
+      ::Time.parse(value, "%F#{$1}%T", location)
+    when /\A(\d{4}-\d{2}-\d{2})\Z/
+      # "2000-01-02"
+      ::Time.parse(value, "%F", location)
+    when /\A(?<year>\d{4})[-: \/]?(?<month>\d{2})[-: \/]?(?<day>\d{2})[-: ]?(?<hour>\d{2})[-: ]?(?<min>\d{2})[-: ]?(?<sec>\d{2})?\Z/
+      # finally, we give best effort to parse something
+      parse($~["year"].to_i, $~["month"].to_i, $~["day"].to_i, $~["hour"].to_i, $~["min"].to_i,  $~["sec"]?.try(&.to_i) || 0, location: location)
+
+    when /\A([A-Za-z]{3}\s+)?(?<month>[A-Z][a-z]{2,9})\s+(?<day>\d{2})\s+(?<hour>\d{2})[-: ]+(?<min>\d{2})[-: ]+(?<sec>\d{2})(\s+[+-]\d{4})?\s+(?<year>\d{4})\b/
+      # "Tue Feb 02 11:30:14 2016"
+      # "Tue Feb 02 11:30:14 +0000 2016"
+      year = $~["year"].to_i
+      v = $~["month"]
+      i = MONTH_NAMES.index(v) || SHORT_MONTH_NAMES.index(v) || raise ArgumentError.new("#{v.inspect} seems MONTH, but our dictionary doesn't support it.")
+      month = i + 1
+      parse(year, month, $~["day"].to_i, $~["hour"].to_i, $~["min"].to_i,  $~["sec"].to_i, location: location)
+    else
+      raise ParseError.new(value)
+    end
+  end
+
+  # for backward compatibility
+  def self.now(*args, **options) : ::Time
+    {% if ::Crystal::VERSION =~ /^0\.(1\d|2[0-7])\./ %}
+      ::Time.new(*args, **options)
+    {% else %}
+      ::Time.local(*args, **options)
+    {% end %}
+  end
+
+  {% if ::Crystal::VERSION =~ /^0\.(1\d|2[0-7])\./ %}
+    def self.utc(year : Int32 = Time.now.year, month : Int32 = Time.now.month, day : Int32 = Time.now.day, hour : Int32 = 0, minute : Int32 = 0, second : Int32 = 0, *, nanosecond : Int32 = 0) : ::Time
+      ::Time.new(year, month, day, hour, minute, second, nanosecond: nanosecond, location: ::Time::Location::UTC)
+    end
+  {% else %}
+    def self.utc(*args, **options) : ::Time
+      ::Time.utc(*args, **options)
+    end
+  {% end %}
+
+  def self.parse(year : Int32, month : Int32, day : Int32, hour : Int32 = 0, minute : Int32 = 0, second : Int32 = 0, *args, **opts)
+    {% if ::Crystal::VERSION =~ /^0\.(1\d|2[0-7])\./ %}
+      ::Time.new(year, month, day, hour, minute, second, *args, **opts)
+    {% else %}
+      ::Time.local(year, month, day, hour, minute, second, *args, **opts)
+    {% end %}
+  end
+end
